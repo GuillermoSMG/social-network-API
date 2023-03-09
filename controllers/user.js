@@ -2,6 +2,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("../services/jwt");
+const mongoosePagination = require("mongoose-pagination");
 //TEST
 const testUser = (req, res) => {
   return res.status(200).send({
@@ -26,7 +27,7 @@ const signUp = (req, res) => {
   User.find({
     $or: [
       { email: params.email.toLowerCase() },
-      { email: params.nickname.toLowerCase() },
+      { nickname: params.nickname.toLowerCase() },
     ],
   }).exec(async (err, users) => {
     if (err)
@@ -108,8 +109,125 @@ const logIn = (req, res) => {
   });
 };
 
+//PROFILE
+const profile = (req, res) => {
+  //get id
+  const id = req.params.id;
+  //query user data
+  User.findById(id)
+    .select({ password: 0, role: 0 })
+    .exec((err, userProfile) => {
+      if (err || !userProfile) {
+        return res.status(404).send({
+          status: "error",
+          message: "El usuario no existe.",
+        });
+      }
+      //return follows
+      //return result
+      return res.status(200).send({
+        status: "success",
+        user: userProfile,
+      });
+    });
+};
+
+const userList = (req, res) => {
+  //page
+  let page = 1;
+  if (req.params.page) page = parseInt(req.params.page);
+  //query mongoose pagination
+  let itemsPerPage = 5;
+
+  User.find({})
+    .sort("_id")
+    .paginate(page, itemsPerPage, (err, users, total) => {
+      //return result
+      if (err || !users) {
+        return res.status(404).send({
+          status: "error",
+          message: "No hay usuarios disponibles.",
+        });
+      }
+      return res.status(200).send({
+        status: "success",
+        users,
+        page,
+        itemsPerPage,
+        total,
+        pages: Math.ceil(total / itemsPerPage),
+      });
+    });
+};
+
+const updateUser = (req, res) => {
+  //get data
+  let userIdentity = req.user;
+  let userToUpdate = req.body;
+  //delete innecesary fields
+  delete userToUpdate.iat;
+  delete userToUpdate.exp;
+  delete userToUpdate.role;
+  delete userToUpdate.image;
+  //look if user already exists
+  User.find({
+    $or: [
+      { email: userToUpdate.email.toLowerCase() },
+      { nickname: userToUpdate.nickname.toLowerCase() },
+    ],
+  }).exec(async (err, users) => {
+    if (err)
+      return res.status(500).json({
+        status: "error",
+        message: "Error en la consulta de usuarios.",
+      });
+
+    let userIsSet = false;
+    users.forEach((user) => {
+      if (user && user._id != userIdentity.id) userIsSet = true;
+    });
+    if (userIsSet) {
+      return res.status(200).send({
+        status: "success",
+        message: "El usuario ya existe.",
+      });
+    }
+    //encode password
+    if (userToUpdate.password) {
+      let pwd = await bcrypt.hash(userToUpdate.password, 10);
+      userToUpdate.password = pwd;
+    }
+    //update
+    try {
+      let userUpdated = await User.findByIdAndUpdate(
+        userIdentity.id,
+        userToUpdate,
+        { new: true }
+      );
+      if (!userUpdated) {
+        return res.status(400).send({
+          status: "error",
+          message: "Error al actualizar.",
+        });
+      }
+      return res.status(200).send({
+        status: "success",
+        message: "Usuario actualizado.",
+        user: userUpdated,
+      });
+    } catch (err) {
+      return res.status(500).send({
+        status: "error",
+        message: "Error al actualizar.",
+      });
+    }
+  });
+};
 module.exports = {
   testUser,
   signUp,
   logIn,
+  profile,
+  userList,
+  updateUser,
 };
