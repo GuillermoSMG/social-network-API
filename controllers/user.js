@@ -3,6 +3,8 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("../services/jwt");
 const mongoosePagination = require("mongoose-pagination");
+const fs = require("fs");
+const path = require("path");
 //TEST
 const testUser = (req, res) => {
   return res.status(200).send({
@@ -200,7 +202,7 @@ const updateUser = (req, res) => {
     //update
     try {
       let userUpdated = await User.findByIdAndUpdate(
-        userIdentity.id,
+        { _id: userIdentity.id },
         userToUpdate,
         { new: true }
       );
@@ -223,6 +225,74 @@ const updateUser = (req, res) => {
     }
   });
 };
+
+const upload = (req, res) => {
+  //get image file !== undefined
+  if (!req.file) {
+    return res.status(404).send({
+      status: "error",
+      message: "Debe subir un archivo.",
+    });
+  }
+  //get file name
+  let image = req.file.originalname;
+  //get extension
+  const imageSplit = image.split(".");
+  const extension = imageSplit[1];
+  //delete if no correct, save if correct
+  if (
+    extension != "png" &&
+    extension != "jpg" &&
+    extension != "jpeg" &&
+    extension != "gif"
+  ) {
+    const filePath = req.file.path;
+    const fileDeleted = fs.unlinkSync(filePath);
+    return res.status(400).send({
+      status: "error",
+      message: "Extensión del archivo no válida.",
+    });
+  }
+
+  User.findOneAndUpdate(
+    { _id: req.user.id },
+    { image: req.file.filename },
+    { new: true },
+    (err, userUpdated) => {
+      if (err || !userUpdated) {
+        return res.status(500).send({
+          status: "error",
+          message: "Error al intentar subir avatar.",
+        });
+      }
+
+      //return result
+      return res.status(200).send({
+        status: "success",
+        user: userUpdated,
+        file: req.file,
+      });
+    }
+  );
+};
+
+const avatar = (req, res) => {
+  //get param from url
+  const file = req.params.file;
+  //create path
+  const filePath = `./upload/avatars/${file}`;
+  //exists? return if yes or no
+  fs.stat(filePath, (err, exists) => {
+    if (err || !exists) {
+      return res.status(404).send({
+        status: "error",
+        message: "No existe la imagen.",
+      });
+    }
+    return res.sendFile(path.resolve(filePath));
+  });
+};
+
 module.exports = {
   testUser,
   signUp,
@@ -230,4 +300,6 @@ module.exports = {
   profile,
   userList,
   updateUser,
+  upload,
+  avatar,
 };
