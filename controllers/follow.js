@@ -1,5 +1,7 @@
 const Follow = require("../models/Follow");
 const User = require("../models/User");
+const { paginate } = require("mongoose-pagination");
+const followService = require("../services/followService");
 
 const testFollow = (req, res) => {
   return res.status(200).send({
@@ -63,22 +65,59 @@ const unfollow = (req, res) => {
 //list of follows
 const following = (req, res) => {
   //get user id
+  let userId = req.user.id;
   //get id from params?
+  if (req.params.id) userId = req.params.id;
   //get page from params?
+  let page = 1;
+
+  if (req.params.page) page = req.params.page;
   //users per page
+  const itemsPerPage = 5;
   //find follow and paginate with mongoose
+  Follow.find({ user: userId })
+    .populate("user followed", "-role -password -__v")
+    .paginate(page, itemsPerPage, async (err, follows, total) => {
+      let followUserIds = await followService.followUserIds(req.user.id);
+      return res.status(200).send({
+        status: "success",
+        message: "Lista seguidos!",
+        follows,
+        total,
+        page: Math.ceil(total / itemsPerPage),
+        user_following: followUserIds.following,
+        users_follows_me: followUserIds.followers,
+      });
+    });
   //users follow others and also follow me
-  return res.status(200).send({
-    status: "success",
-    message: "Lista seguidos!",
-  });
 };
 
 const followers = (req, res) => {
-  return res.status(200).send({
-    status: "success",
-    message: "Lista me siguen!",
-  });
+  //get user id
+  let userId = req.user.id;
+  //get id from params?
+  if (req.params.id) userId = req.params.id;
+  //get page from params?
+  let page = 1;
+
+  if (req.params.page) page = req.params.page;
+  //users per page
+  const itemsPerPage = 5;
+
+  Follow.find({ followed: userId })
+    .populate("user", "-role -password -__v")
+    .paginate(page, itemsPerPage, async (err, follows, total) => {
+      let followUserIds = await followService.followUserIds(req.user.id);
+      return res.status(200).send({
+        status: "success",
+        message: "Lista de usuarios que me siguen.",
+        follows,
+        total,
+        page: Math.ceil(total / itemsPerPage),
+        user_following: followUserIds.following,
+        users_follows_me: followUserIds.followers,
+      });
+    });
 };
 
 module.exports = {
