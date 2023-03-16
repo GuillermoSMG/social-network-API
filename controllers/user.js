@@ -5,6 +5,7 @@ const jwt = require("../services/jwt");
 const mongoosePagination = require("mongoose-pagination");
 const fs = require("fs");
 const path = require("path");
+const followService = require("../services/followService");
 //TEST
 const testUser = (req, res) => {
   return res.status(200).send({
@@ -39,11 +40,12 @@ const signUp = (req, res) => {
       });
 
     if (users && users.length >= 1) {
-      return res.status(200).send({
+      return res.status(400).send({
         status: "success",
-        message: "El usuario ya existe.",
+        message: "Nickname o Email ya registrados.",
       });
     }
+
     //encode password
     let pwd = await bcrypt.hash(params.password, 10);
     params.password = pwd;
@@ -118,7 +120,7 @@ const profile = (req, res) => {
   //query user data
   User.findById(id)
     .select({ password: 0, role: 0 })
-    .exec((err, userProfile) => {
+    .exec(async (err, userProfile) => {
       if (err || !userProfile) {
         return res.status(404).send({
           status: "error",
@@ -126,14 +128,18 @@ const profile = (req, res) => {
         });
       }
       //return follows
+      const followInfo = await followService.followThisUser(req.user.id, id);
       //return result
       return res.status(200).send({
         status: "success",
         user: userProfile,
+        following: followInfo.following,
+        follower: followInfo.follower,
       });
     });
 };
 
+//USER LIST
 const userList = (req, res) => {
   //page
   let page = 1;
@@ -143,7 +149,7 @@ const userList = (req, res) => {
 
   User.find({})
     .sort("_id")
-    .paginate(page, itemsPerPage, (err, users, total) => {
+    .paginate(page, itemsPerPage, async (err, users, total) => {
       //return result
       if (err || !users) {
         return res.status(404).send({
@@ -151,6 +157,9 @@ const userList = (req, res) => {
           message: "No hay usuarios disponibles.",
         });
       }
+
+      let followUserIds = await followService.followUserIds(req.user.id);
+
       return res.status(200).send({
         status: "success",
         users,
@@ -158,10 +167,13 @@ const userList = (req, res) => {
         itemsPerPage,
         total,
         pages: Math.ceil(total / itemsPerPage),
+        user_following: followUserIds.following,
+        users_follows_me: followUserIds.followers,
       });
     });
 };
 
+//UPDATE USER
 const updateUser = (req, res) => {
   //get data
   let userIdentity = req.user;
@@ -226,6 +238,7 @@ const updateUser = (req, res) => {
   });
 };
 
+//UPLOAD AVATAR
 const upload = (req, res) => {
   //get image file !== undefined
   if (!req.file) {
@@ -276,6 +289,7 @@ const upload = (req, res) => {
   );
 };
 
+//GET AVATAR
 const avatar = (req, res) => {
   //get param from url
   const file = req.params.file;
