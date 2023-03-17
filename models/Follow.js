@@ -1,12 +1,13 @@
-const { Schema, model } = require("mongoose");
+const mongoose = require("mongoose");
+mongoose.set("strictQuery", true);
 
-const FollowSchema = Schema({
+const FollowSchema = mongoose.Schema({
   user: {
-    type: Schema.ObjectId,
+    type: mongoose.Schema.ObjectId,
     ref: "User",
   },
   followed: {
-    type: Schema.ObjectId,
+    type: mongoose.Schema.ObjectId,
     ref: "User",
   },
   created_at: {
@@ -15,4 +16,4 @@ const FollowSchema = Schema({
   },
 });
 
-module.exports = model("Follow", FollowSchema);
+module.exports = mongoose.model("Follow", FollowSchema);

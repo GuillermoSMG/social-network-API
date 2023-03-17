@@ -1,6 +1,7 @@
-const { Schema, model } = require("mongoose");
+const mongoose = require("mongoose");
+mongoose.set("strictQuery", true);
 
-const UserSchema = Schema({
+const UserSchema = mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -33,4 +34,4 @@ const UserSchema = Schema({
   },
 });
 
-module.exports = model("User", UserSchema);
+module.exports = mongoose.model("User", UserSchema);
