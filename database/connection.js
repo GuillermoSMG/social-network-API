@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const connection = async () => {
   try {
-    await mongoose.connect(process.env.URL_DB);
+    mongoose.connect(process.env.URL_DB);
     console.log("Conectado a DB Social Network");
   } catch (err) {
     console.log(err);
