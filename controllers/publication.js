@@ -2,6 +2,7 @@ const Publication = require("../models/Publication");
 const { paginate } = require("mongoose-pagination");
 const fs = require("fs");
 const path = require("path");
+const followService = require("../services/followService");
 
 const testPublication = (req, res) => {
   return res.status(200).send({
@@ -84,7 +85,7 @@ const user = (req, res) => {
   //find, populate, paginate
   Publication.find({ user: userId })
     .sort("-created_at")
-    .populate("user", "-password -__v -role")
+    .populate("user", "-password -__v -role -email")
     .paginate(page, itemsPerPage, (err, publications, total) => {
       if (err || !publications || publications.length < 1)
         return res.status(404).send({
@@ -173,6 +174,47 @@ const publicationImage = (req, res) => {
   });
 };
 
+//(FEED) PUBLICATIONS LIST
+const feed = async (req, res) => {
+  //get page
+  let page = req.params?.page || 1;
+  //items per page
+  const itemsPerPage = 5;
+  //my follows
+  try {
+    let followUserIds = await followService.followUserIds(req.user.id);
+
+    const publications = await Publication.find({
+      user: followUserIds.following,
+    })
+      .populate("user", "-password -role -__v -email")
+      .sort("-created_at")
+      .paginate(page, itemsPerPage, (err, publications, total) => {
+        if (err || !publications || publications.length < 1) {
+          return res.status(404).send({
+            status: "error",
+            message: "No se han encontrado publicaciones.",
+          });
+        }
+
+        return res.status(200).send({
+          status: "success",
+          following: followUserIds.following,
+          total,
+          page,
+          pages: Math.ceil(total / itemsPerPage),
+          publications,
+        });
+      });
+  } catch (error) {
+    return res.status(500).send({
+      status: "error",
+      message: "No se han podido listar las publicaciones.",
+    });
+  }
+  //find publications, populate n paginate
+};
+
 module.exports = {
   testPublication,
   save,
@@ -181,4 +223,5 @@ module.exports = {
   user,
   upload,
   publicationImage,
+  feed,
 };
