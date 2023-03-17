@@ -1,8 +1,9 @@
-const { Schema, model } = require("mongoose");
+const mongoose = require("mongoose");
+mongoose.set("strictQuery", true);
 
-const PublicationSchema = Schema({
+const PublicationSchema = mongoose.Schema({
   user: {
-    type: Schema.ObjectId,
+    type: mongoose.Schema.ObjectId,
     ref: "User",
   },
   text: {
@@ -16,4 +17,8 @@ const PublicationSchema = Schema({
   },
 });
 
-module.exports = model("Publication", PublicationSchema, "publications");
+module.exports = mongoose.model(
+  "Publication",
+  PublicationSchema,
+  "publications"
+);
