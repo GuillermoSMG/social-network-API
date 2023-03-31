@@ -6,6 +6,9 @@ const mongoosePagination = require("mongoose-pagination");
 const fs = require("fs");
 const path = require("path");
 const followService = require("../services/followService");
+const Follow = require("../models/Follow");
+const Publication = require("../models/Publication");
+const { validate } = require("../helpers/validate");
 //TEST
 const testUser = (req, res) => {
   return res.status(200).send({
@@ -26,6 +29,8 @@ const signUp = (req, res) => {
     });
   }
 
+  //validation
+  validate(params);
   //control duplicate users
   User.find({
     $or: [
@@ -145,10 +150,11 @@ const userList = (req, res) => {
   let page = 1;
   if (req.params.page) page = parseInt(req.params.page);
   //query mongoose pagination
-  let itemsPerPage = 5;
+  let itemsPerPage = 20;
 
   User.find({})
     .sort("_id")
+    .select("-password -email -role -_v")
     .paginate(page, itemsPerPage, async (err, users, total) => {
       //return result
       if (err || !users) {
@@ -210,6 +216,8 @@ const updateUser = (req, res) => {
     if (userToUpdate.password) {
       let pwd = await bcrypt.hash(userToUpdate.password, 10);
       userToUpdate.password = pwd;
+    } else {
+      delete userToUpdate.password;
     }
     //update
     try {
@@ -307,6 +315,30 @@ const avatar = (req, res) => {
   });
 };
 
+const counters = async (req, res) => {
+  let userId = req.params.id || req.user.id;
+
+  try {
+    const following = await Follow.count({ user: userId });
+    const followed = await Follow.count({ followed: userId });
+    const publications = await Publication.count({ user: userId });
+
+    return res.status(200).send({
+      status: "success",
+      userId,
+      following,
+      followed,
+      publications,
+    });
+  } catch (err) {
+    return res.status(500).send({
+      status: "error",
+      message: "Error en los contadores.",
+      err,
+    });
+  }
+};
+
 module.exports = {
   testUser,
   signUp,
@@ -316,4 +348,5 @@ module.exports = {
   updateUser,
   upload,
   avatar,
+  counters,
 };

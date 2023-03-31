@@ -17,8 +17,4 @@ const PublicationSchema = mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model(
-  "Publication",
-  PublicationSchema,
-  "publications"
-);
+module.exports = mongoose.model("Publication", PublicationSchema);

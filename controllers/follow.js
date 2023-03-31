@@ -76,7 +76,7 @@ const following = (req, res) => {
   const itemsPerPage = 5;
   //find follow and paginate with mongoose
   Follow.find({ user: userId })
-    .populate("user followed", "-role -password -__v")
+    .populate("user followed", "-role -password -__v -email")
     .paginate(page, itemsPerPage, async (err, follows, total) => {
       let followUserIds = await followService.followUserIds(req.user.id);
       return res.status(200).send({
@@ -105,7 +105,7 @@ const followers = (req, res) => {
   const itemsPerPage = 5;
 
   Follow.find({ followed: userId })
-    .populate("user", "-role -password -__v")
+    .populate("user", "-role -password -__v -email")
     .paginate(page, itemsPerPage, async (err, follows, total) => {
       let followUserIds = await followService.followUserIds(req.user.id);
       return res.status(200).send({
